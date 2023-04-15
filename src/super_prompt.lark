@@ -1,0 +1,48 @@
+start: expr
+
+expr: sexp | name | val | string
+
+val: NUMBER
+
+name: SNAME
+
+sexp: "(" (let_form | cond_form | case_form | if_form | or_form | and_form | math_form | comp_form | str_form | loose_match_form | question_form) ")"
+
+
+let_form: "let" "[" binding* "]" expr
+binding: name expr
+
+cond_form: "cond" cond_clause*
+cond_clause: expr expr
+
+case_form: "case" expr case_clause*
+case_clause: string expr
+
+if_form: "if" expr expr expr
+
+or_form: "or" expr+
+
+and_form: "and" expr+
+
+math_form: math_op expr expr
+math_op: "+" | "-" | "="
+
+
+comp_form: comp_op expr expr
+comp_op: ">" | "<"
+
+loose_match_form: "~=" expr expr
+
+str_form: "str" expr+
+
+question_form: "?" string
+
+SNAME: /[A-Za-z*+!_?<>=%&][A-Za-z0-9*+!_?<>=%&-]*/i
+
+NUMBER: /\d+/i
+
+string: STRING
+STRING: /"((?:[^{"]|{[^}]*}|\n)*)"/s
+
+%import common.WS
+%ignore WS

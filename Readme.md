@@ -40,27 +40,16 @@ result = magichat.magic("film.superprompt")
 ```
 
 
-
-
 ### Features:
 - LLM first, strings are by default sent to the server
 - String Interpolation with a new type:
 	{gen_resul} or {gen_result:fill} to include the query for the generation result
 - Adopts a modern lisp syntax mostly inherited from Clojure(Works with CLJ syntax highlighting and with co-pilot as a result)
 
-Image by default, no extra code required to chain your images around
-
-Allows adapters:
-Defaults 
-Define your own python function to eval on your own model or cloud provider.
-
-
 ## Why?
 
-
 This is mostly used as an embedded lang for small chains of prompts. A language designe for prompts first
-with some helpers for chaining them. By using a new DSL we can introduce agressive defaults and do some simple
-examples in a small amount of code.
+with some helpers for chaining them. By using a new DSL we can introduce agressive defaults and do some simple examples in a small amount of code.
 
 These are meant to be small embedded prompt recipes in a bigger python program. Not a new programming language.
 

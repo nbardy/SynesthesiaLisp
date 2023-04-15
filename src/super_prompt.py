@@ -1,3 +1,4 @@
+import argparse
 from alive_progress.animations.spinners import bouncing_spinner_factory, sequential_spinner_factory
 from alive_progress import alive_bar
 from alive_progress import config_handler
@@ -216,10 +217,6 @@ def parse_super_prompt(dsl_code):
     return transformer.transform(tree)
 
 
-with open("examples/film.super_prompt", "r") as f:
-    dsl_code = f.read()
-
-
 def eval_case(ast, env):
     test_value = eval_ast(ast[0], env)
     cases = ast[1:]
@@ -355,11 +352,6 @@ def eval_val(expr, env):
     return int(expr.children[0].value)
 
 
-def eval_sexpr(expr, env):
-    form_name = expr.data
-    return eval_functions[form_name](expr, env)
-
-
 eval_functions = {
     'if_form': eval_if_form,
     'math_form': eval_math_form,
@@ -371,6 +363,25 @@ eval_functions = {
     'let_form': eval_let_form,
     'str_form': eval_str_form,
 }
+
+
+def eval_sexpr(expr, env):
+    form_name = expr.data
+    return eval_functions[form_name](expr, env)
+
+
+default = "examples/film_simple.super_prompt"
+
+# argparse for file options
+parser = argparse.ArgumentParser(description='Process some integers.')
+parser.add_argument('--file', type=str, default=default, help='file to run')
+
+args = parser.parse_args()
+file = args.file
+
+
+with open(file, "r") as f:
+    dsl_code = f.read()
 
 
 # Implement the eval_* functions for each form as needed.

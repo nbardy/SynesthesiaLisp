@@ -1,4 +1,4 @@
-## Oblonk
+## Magic Hat
 
 A lisp dialogue for talking to images
 

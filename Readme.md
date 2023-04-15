@@ -28,7 +28,6 @@ film.superprompt
     {critique-caption}
 
     Generate a final caption densely that describes the most interesting parts of the image in the simplest way.")
-~
 ```
 
 Call in python

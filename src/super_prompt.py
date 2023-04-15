@@ -1,3 +1,7 @@
+from alive_progress.animations.spinners import bouncing_spinner_factory, sequential_spinner_factory
+from alive_progress import alive_bar
+from alive_progress import config_handler
+import ast
 from alive_progress import alive_bar, config_handler
 from lark import Tree, Token
 import lark
@@ -13,11 +17,12 @@ openai.api_key = "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"
 openai.organization = "org-9FuYsKOwtUzcDFxwPQBCgHe1"
 
 
+# Useful for testing non gpu
 current_llm = "openai_chat_turbo"
 
 
 def send_to_llm(content):
-    if current_llm == "openai":
+    if current_llm == "openai_chat_turbo":
         return eval_openai_chat_turbo(content)
     elif current_llm == "blip":
         return eval_blip_local(content)
@@ -97,14 +102,18 @@ def eval_str(item, env):
     print("🪄 Querying the LLM")
     print("🪄 Query: \n\n", text, "\n")
 
-    # Configure the magic theme for the animated loader
-    config_handler.set_global(theme='smooth', spinner='dots_waves')
+    # Custom emoji animation
+    magic_emojis = bouncing_spinner_factory("🌈🔮✨💫🪄🌟", 12)
+    magic_spinner = sequential_spinner_factory(*[magic_emojis]*12)
 
-    with alive_bar(title="🔮 Sending query...", bar="circles") as bar:
+    # Configure the magic theme for the animated loader
+    # config_handler.set_global(theme='smooth', spinner=magic_spinner)
+
+    with alive_bar(title="🔮🪄 Sending query with magic... ", spinner=magic_spinner) as bar:
         llm_response = send_to_llm(text)
         bar()
 
-    print("🎉 Response: \n\n", llm_response, "\n")
+    print("🌐 Response: \n\n", llm_response, "\n")
 
     return llm_response
 
@@ -187,7 +196,7 @@ class SuperPromptTransformer(Transformer):
             raise ValueError(f"Undefined token: {e}")
 
     def STRING(self, token):
-        return eval(token)
+        return ast.literal_eval(token)
 
     def binding(self, items):
         return Tree("binding", [items[0], items[1]])

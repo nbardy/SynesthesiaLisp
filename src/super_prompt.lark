@@ -41,8 +41,9 @@ SNAME: /[A-Za-z*+!_?<>=%&][A-Za-z0-9*+!_?<>=%&-]*/i
 
 NUMBER: /\d+/i
 
-string: STRING
-STRING: /"((?:[^{"]|{[^}]*}|\n)*)"/s
+
+string: SINGLE_QUOTED_STRING
+SINGLE_QUOTED_STRING: /"(?:[^"\\]|\\.|\n)*"/
 
 %import common.WS
 %ignore WS

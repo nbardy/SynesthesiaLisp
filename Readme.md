@@ -18,7 +18,7 @@ film.superprompt
             (>= people-count 2) "Q: What does the person in this image look like?
                                  Notes: Add comments on the most interesting features, what is visualy stunning about this person?
                                  A:")
-  total-caption (str "The Subject is ")
+  total-caption (str "The Subject is {subject}")
   critique-caption "Critique the caption: {subject}"]
   "Given the following:
     caption

@@ -46,7 +46,7 @@ result = magichat.magic("film.superprompt")
 - Fuzzy string matching operations (~= "animal" foo) matches for all foo: {"Animal", "\n Animal", "animals"}
 - Auto casts the LLM's responses to error safe values. e.g. yes/no/True/False => bool
 - String Interpolation with a new type:
-	{gen_resul} or {gen_result:fill} to include the query for the generation result
+	{gen_resul} or {gen_result:full} {gen_result:prompt}, ":full" includes the prompt+response., ":prompt" just the prompt By default only the response is used.
 - Adopts a modern lisp syntax mostly inherited from Clojure(Works with CLJ syntax highlighting and with co-pilot as a result)
 
 ## Why?

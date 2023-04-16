@@ -37,7 +37,7 @@ Call in python
 ```
 import magichat
 
-result = magichat.magic("film.superprompt")
+result = magichat.magic("film.super_prompt")
 ```
 
 

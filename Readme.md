@@ -10,6 +10,8 @@ film.superprompt
  ^{:model "blip2"
    :model-args ["test_example.jpg"]}
  [people-count "How many people are in the image, answer zero if none?"
+  focus        "What is the focus of the scene?"
+  is-animal.   (~= "animal
   subject (cond
             (= people-count 0) "What is in this image?"
             (= people-count 1) "Q: What does the person in this image look like?
@@ -41,8 +43,8 @@ result = magichat.magic("film.superprompt")
 
 ### Features:
 - LLM first, strings are by default sent to the server
-- Auto fuzzy cast - LLMS responses are converted from fuzzy string to error safe values. e.g. yes/no/True/False, etc... => True/False
-- Fuzzy 
+- Fuzzy string matching operations (~= "animal" foo) matches for all foo: {"Animal", "\n Animal", "animals"}
+- Auto casts the LLM's responses to error safe values. e.g. yes/no/True/False => bool
 - String Interpolation with a new type:
 	{gen_resul} or {gen_result:fill} to include the query for the generation result
 - Adopts a modern lisp syntax mostly inherited from Clojure(Works with CLJ syntax highlighting and with co-pilot as a result)

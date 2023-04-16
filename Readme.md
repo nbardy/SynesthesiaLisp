@@ -41,7 +41,8 @@ result = magichat.magic("film.superprompt")
 
 ### Features:
 - LLM first, strings are by default sent to the server
-- Auto fuzzy cast - LLMS responses are convert from fuzzy string to error safe values. e.g. yes/no/True/False, etc... => True/False
+- Auto fuzzy cast - LLMS responses are converted from fuzzy string to error safe values. e.g. yes/no/True/False, etc... => True/False
+- Fuzzy 
 - String Interpolation with a new type:
 	{gen_resul} or {gen_result:fill} to include the query for the generation result
 - Adopts a modern lisp syntax mostly inherited from Clojure(Works with CLJ syntax highlighting and with co-pilot as a result)

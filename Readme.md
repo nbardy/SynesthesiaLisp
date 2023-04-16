@@ -11,7 +11,7 @@ film.superprompt
    :model-args ["test_example.jpg"]}
  [people-count "How many people are in the image, answer zero if none?"
   focus        "What is the focus of the scene?"
-  is-animal.   (~= "animal
+  animal-desc  (if (~= "animal" focus) "What is a simple way to describe the animal?")
   subject (cond
             (= people-count 0) "What is in this image?"
             (= people-count 1) "Q: What does the person in this image look like?
@@ -20,7 +20,7 @@ film.superprompt
             (>= people-count 2) "Q: What does the person in this image look like?
                                  Notes: Add comments on the most interesting features, what is visualy stunning about this person?
                                  A:")
-  total-caption (str "The Subject is {subject}")
+  total-caption (str "The Subject is {subject}, animal-desc")
   critique-caption "Critique the caption: {subject}"]
   "Given the following:
     caption

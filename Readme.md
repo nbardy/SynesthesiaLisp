@@ -1,6 +1,6 @@
 ## Magic Hat
 
-A lisp dialogue for talking to multimodal LLMS
+A lisp dialogue for talking to multimodal LLMs
 
 Example:
 

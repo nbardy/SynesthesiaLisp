@@ -1,0 +1,47 @@
+start = expr
+
+expr = sexp / name / val / string
+
+val = NUMBER
+
+name = SNAME
+
+sexp = "(" (let_form / cond_form / case_form / if_form / or_form / and_form / math_form / comp_form / str_form / loose_match_form / question_form) ")"
+
+let_form = "let" metadata? "[" binding* "]" expr
+binding = name expr
+
+metadata = CARET_METADATA
+key_value = SYMBOL expr
+
+cond_form = "cond" cond_clause*
+cond_clause = expr expr
+
+case_form = "case" expr case_clause*
+case_clause = string expr
+
+if_form = "if" expr expr expr
+
+or_form = "or" expr+
+
+and_form = "and" expr+
+
+math_form = math_op expr expr
+math_op = "+" / "-" / "="
+
+comp_form = comp_op expr expr
+comp_op = ">" / "<"
+
+loose_match_form = "~=" expr expr
+
+str_form = "str" expr+
+
+question_form = "?" string
+
+SNAME = ~r"[A-Za-z*+!_?<>=%&][A-Za-z0-9*+!_?<>=%&-]*"
+NUMBER = ~r"\d+"
+string = SINGLE_QUOTED_STRING
+SINGLE_QUOTED_STRING = ~r'"(?:[^"\\]|\\.|\n)*"'
+CARET_METADATA = ~r"\^\{[^}]*\}"
+SYMBOL = ~r"[A-Za-z][-A-Za-z0-9]*"
+

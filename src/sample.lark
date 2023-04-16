@@ -11,7 +11,7 @@ sexp: "(" (let_form | cond_form | case_form | if_form | or_form | and_form | mat
 let_form: "let" metadata? "[" binding* "]" expr
 binding: name expr
 
-metadata: "^" metadata_dict
+metadata: CARET_METADATA
 
 key_value: SYMBOL expr
 
@@ -31,7 +31,7 @@ math_form: math_op expr expr
 math_op: "+" | "-" | "="
 
 comp_form: comp_op expr expr
-comp_op: ">" | "<" | ">=" | "<="
+comp_op: ">" | "<"
 
 loose_match_form: "~=" expr expr
 
@@ -45,24 +45,10 @@ str_for: "str" expr+
 
 NUMBER: /\d+/i
 
-string: DOUBLE_QUOTED_STRING
-DOUBLE_QUOTED_STRING: /"(?:[^"\\]|\\.|\n)*"/s
+string: SINGLE_QUOTED_STRING
+SINGLE_QUOTED_STRING: /"(?:[^"\\]|\\.|\n)*"/s
 
-
-metadata_dict: "{" metadata_key_value_pair_list "}"
-metadata_key_value_pair_list: metadata_key_value_pair (","? metadata_key_value_pair)*
-metadata_key_value_pair: metadata_key metadata_value
-metadata_key: ":" SYMBOL
-
-metadata_value: string | number | list | metadata_dict
-
-list: "[" value_list "]"
-value_list: (metadata_value ","?)*
-
-number: SIGNED_INT | FLOAT
-SIGNED_INT: /-?\d+/i
-FLOAT: /-?\d+\.\d+/i
-
+CARET_METADATA: /\^\s*\{[^}]*\}/
 
 SYMBOL: /[A-Za-z][-A-Za-z0-9]*/i
 

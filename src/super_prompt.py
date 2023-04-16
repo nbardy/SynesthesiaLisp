@@ -1,3 +1,6 @@
+from transformers import Blip2Processor, Blip2ForConditionalGeneration
+import torch
+from PIL import Image
 import argparse
 from alive_progress.animations.spinners import bouncing_spinner_factory, sequential_spinner_factory
 from alive_progress import alive_bar
@@ -17,18 +20,45 @@ import openai
 openai.api_key = "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"
 openai.organization = "org-9FuYsKOwtUzcDFxwPQBCgHe1"
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 # Useful for testing non gpu
-current_llm = "openai_chat_turbo"
+default_model_context_key = "openai_chat_turbo"
 
 
-def send_to_llm(content):
-    if current_llm == "openai_chat_turbo":
-        return eval_openai_chat_turbo(content)
-    elif current_llm == "blip":
-        return eval_blip_local(content)
+def is_image(filename):
+    return any(filename.endswith(extension) for extension in [".png", ".jpg", ".jpeg", ".webp"])
+
+
+def process_args(args):
+    # Take the string of vector and make a list
+    # ["file.jpg", "tree"]
+    args = args.split(",")
+    args = [arg.strip() for arg in args]
+
+    # Now open all image files and convert to PIL
+    # ["file.jpg", "tree"] -> [PIL.Image, "tree"]
+    for i, arg in enumerate(args):
+        if is_image(arg):
+            args[i] = Image.open(arg)
+
+
+def send_to_llm(content, env):
+    current_llm_metadata = env.get(
+        MODEL_CONTEXT_KEY, default_model_context_key)
+    print(" CURRENT")
+    print(current_llm_metadata)
+    print(" CURRETN")
+    model = current_llm_metadata["model"]
+    model_args = current_llm_metadata["model-args"]
+
+    if model == "openai_chat_turbo":
+        return eval_openai_chat_turbo(content, env)
+    elif model == "blip2":
+        return eval_blip_local(content, process_args(model_args))[0]
     else:
-        raise ValueError(f'Unknown LLM: {current_llm}')
+        raise ValueError(f'Unknown Model: {model}')
 
 
 # Currently used for testing on GPU machines
@@ -45,9 +75,53 @@ def eval_openai_chat_turbo(content):
     return assistant_reply
 
 
-def eval_blip_local(content):
-    # TODO
-    return
+def load_blip2_0(model_id="Salesforce/blip2-flan-t5-xxl"):
+    """
+    Function to load and cache the BLIP 2.0 processor and model.
+
+    Args:
+        model_id (str, optional): The Hugging Face model ID for the BLIP 2.0 model. Defaults to "Salesforce/blip2-flan-t5-xxl".
+
+    Returns:
+        tuple: A tuple containing the Blip2Processor and Blip2ForConditionalGeneration instances.
+    """
+
+    processor = Blip2Processor.from_pretrained(model_id)
+    model = Blip2ForConditionalGeneration.from_pretrained(
+        model_id, torch_dtype=torch.float16)
+    model.to(device)
+
+    return processor, model
+
+
+def eval_blip_local(content, image):
+    """
+    Function to evaluate the BLIP 2.0 model on the given text and image inputs.
+
+    Args:
+        content (str): The text input for the BLIP 2.0 model.
+        image (PIL.Image.Image): The image input for the BLIP 2.0 model.
+
+    Returns:
+        str: The generated response from the BLIP 2.0 model.
+    """
+    # Ensure the image is in RGB format
+    image = image.convert('RGB')
+
+    processor, model = load_blip2_0()
+
+    # Process the inputs using the Blip2Processor
+    inputs = processor(images=image, text=content,
+                       return_tensors="pt").to(device, torch.float16)
+
+    # Generate the output using the Blip2ForConditionalGeneration model
+    generated_ids = model.generate(**inputs)
+
+    # Decode the generated output and return it as a string
+    generated_text = processor.batch_decode(
+        generated_ids, skip_special_tokens=True)[0].strip()
+
+    return generated_text
 
 
 def build_str(s: str, env: dict) -> str:
@@ -111,7 +185,7 @@ def eval_str(item, env):
     # config_handler.set_global(theme='smooth', spinner=magic_spinner)
 
     with alive_bar(title="🔮🪄 Sending query with magic... ", spinner=magic_spinner) as bar:
-        llm_response = send_to_llm(text)
+        llm_response = send_to_llm(text, env)
         bar()
 
     print("🌐 Response: \n\n", llm_response, "\n")
@@ -134,13 +208,53 @@ def eval_ast(expr, env):
     else:
         raise ValueError(f'Unknown expression: {expr}')
 
+# Split metadat
+# if first child looks like this
+# Binding: Tree(Token('RULE', 'metadata'), [Token('CARET_METADATA', '^{:model "blip2"\n   :model-args ["test_example.jpg"]}')])
+# Get the first child of the metadata tree
+# parse it with the metadata parser
+# If first child is no there return none
+# Return rest of children as well
+
+
+def split_metadata(tree: Tree):
+    if len(tree.children) == 0:
+        raise ValueError("No children in tree")
+
+    print("== tre")
+    print(tree)
+    print("== child")
+    first_child = tree.children[0]
+    print(first_child.data)
+    if first_child.data == "metadata":
+        metadata = first_child.children[0].value
+        parsed_metadata = parse_metadata(metadata)
+
+        return parsed_metadata, tree.children[1:]
+
+    return None, tree.children
+
+
+def parse_metadata(metadata_str):
+    return metadata_parser.parse(metadata_str)
+
+
+MODEL_CONTEXT_KEY = "__model_context_key__"
+
 
 def eval_let_form(tree: Tree, context: dict):
     new_context = context.copy()
     print("Eval Let =========")
     print("tree: ")
     print(tree)
-    for binding in tree.children:
+
+    metadata, children = split_metadata(tree)
+
+    # Add metadata to context
+    if metadata:
+        new_context[MODEL_CONTEXT_KEY] = metadata
+
+    for binding in children:
         # Add this line for debugging purposes
         print("===== binding Hello =====")
         print("===== binding =====")
@@ -186,7 +300,7 @@ def parse_super_prompt(dsl_code):
 
 
 class SuperPromptTransformer(Transformer):
-    @v_args(inline=True)
+    @ v_args(inline=True)
     def sexpr(self, items):
         return [items]
 
@@ -206,6 +320,61 @@ class SuperPromptTransformer(Transformer):
 
     def start(self, items):
         return items[0]
+
+
+class MetadataTransformer(Transformer):
+    @v_args(inline=True)
+    def metadata_dict(self, items):
+        return self._process_dict({key: value for key, value in items})
+
+    def key_value_pair_list(self, items):
+        return items
+
+    def key_value_pair(self, items):
+        return items[0], items[1]
+
+    def key(self, items):
+        return str(items[0])
+
+    def string(self, items):
+        return items[0][1:-1]
+
+    def number(self, items):
+        num_str = items[0]
+        return int(num_str) if num_str.isdigit() else float(num_str)
+
+    def list(self, items):
+        return self._process_list(items)
+
+    def value_list(self, items):
+        return items
+
+    def _process_dict(self, d):
+        # return {key: self._process_value(value) for key, value in d.items()}
+        # Remove ":" leader
+        return {key[1:]: self._process_value(value) for key, value in d.items()}
+
+    def _process_list(self, items):
+        return self._process_value(items[0])
+
+    def _process_value(self, value):
+        if isinstance(value, str):
+            try:
+                return int(value)
+            except ValueError:
+                try:
+                    return float(value)
+                except ValueError:
+                    return value
+        elif isinstance(value, list):
+            return [self._process_value(v) for v in value]
+        elif isinstance(value, dict):
+            return self._process_dict(value)
+
+        elif isinstance(value, lark.tree.Tree):
+            return self._process_value(value.children[0])
+        else:
+            raise ValueError(f"Unknown value type: {type(value)}")
 
 
 # Parse the DSL code
@@ -382,6 +551,13 @@ file = args.file
 
 with open(file, "r") as f:
     dsl_code = f.read()
+
+dsl_code = """
+(let 
+    ^{:model "blip2"
+    :model-args ["test_example.jpg" "test_example_2.jpg"]}
+    [tree "Big"] tree)
+"""
 
 
 # Implement the eval_* functions for each form as needed.

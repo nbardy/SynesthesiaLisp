@@ -4,7 +4,7 @@ A lisp dialogue for talking to multimodal LLMs
 
 Example:
 
-film.superprompt
+*film.super_prompt*
 ```clojure
 (let
  ^{:model "blip2"

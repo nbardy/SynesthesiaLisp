@@ -1,3 +1,5 @@
+from lark import Lark
+from lark import Transformer, v_args
 from transformers import Blip2Processor, Blip2ForConditionalGeneration
 import torch
 from PIL import Image
@@ -9,9 +11,6 @@ import ast
 from alive_progress import alive_bar, config_handler
 from lark import Tree, Token
 import lark
-import re
-from lark import Lark
-from lark import Lark, Transformer, v_args
 
 import openai
 
@@ -51,12 +50,15 @@ def send_to_llm(content, env):
     print(current_llm_metadata)
     print(" CURRETN")
     model = current_llm_metadata["model"]
+    # TOOD: Fix parser so metadata does not get generated as {type...} so we don't have to unwrap a gen
+    model = model["value"]
     model_args = current_llm_metadata["model-args"]
+    image = model_args[0]["value"]
 
     if model == "openai_chat_turbo":
         return eval_openai_chat_turbo(content, env)
     elif model == "blip2":
-        return eval_blip_local(content, process_args(model_args))[0]
+        return eval_blip_local(content, image)[0]
     else:
         raise ValueError(f'Unknown Model: {model}')
 
@@ -86,10 +88,18 @@ def load_blip2_0(model_id="Salesforce/blip2-flan-t5-xxl"):
         tuple: A tuple containing the Blip2Processor and Blip2ForConditionalGeneration instances.
     """
 
-    processor = Blip2Processor.from_pretrained(model_id)
-    model = Blip2ForConditionalGeneration.from_pretrained(
-        model_id, torch_dtype=torch.float16)
-    model.to(device)
+    magic_emojis = bouncing_spinner_factory("🌈🔮✨💫🪄🌟", 12)
+    magic_spinner = sequential_spinner_factory(*[magic_emojis]*12)
+
+    # Configure the magic theme for the animated loader
+    # config_handler.set_global(theme='smooth', spinner=magic_spinner)
+
+    with alive_bar(title="Loading Model", spinner=magic_spinner, bar=None) as bar:
+        processor = Blip2Processor.from_pretrained(model_id)
+        model = Blip2ForConditionalGeneration.from_pretrained(
+            model_id, torch_dtype=torch.float16)
+        model.to(device)
+        bar()
 
     return processor, model
 
@@ -106,6 +116,11 @@ def eval_blip_local(content, image):
         str: The generated response from the BLIP 2.0 model.
     """
     # Ensure the image is in RGB format
+    print("sdsdsdsd")
+    print("sdsdsdsd")
+    print("sdsdsdsd")
+    print("sdsdsdsd")
+    print(image)
     image = image.convert('RGB')
 
     processor, model = load_blip2_0()
@@ -124,6 +139,12 @@ def eval_blip_local(content, image):
     return generated_text
 
 
+StringUnparsed = "StringUnparsed"
+StringGen = "StringGen"
+StringValue = "StringValue"
+
+
+# Takes a raw string and interpolates the values into it
 def build_str(s: str, env: dict) -> str:
     def get_value(token: str, include_prompt: bool = False) -> str:
         env_obj = env.get(token)
@@ -131,13 +152,10 @@ def build_str(s: str, env: dict) -> str:
         if not env_obj:
             return f"{{{token}}}"
 
-        if env_obj["type"] == "StringUnparsed":
-            return build_str(env_obj["value"], env) if not include_prompt else f"{env_obj['value']}"
-
-        elif env_obj["type"] == "StringValue":
+        elif env_obj["type"] == StringValue:
             return env_obj["value"]
 
-        elif env_obj["type"] == "StringGen":
+        elif env_obj["type"] == StringGen:
             return env_obj["value"] if not include_prompt else f"{env_obj['prompt']}{env_obj['value']}"
 
         else:
@@ -171,7 +189,14 @@ def build_str(s: str, env: dict) -> str:
 
 
 def eval_str(item, env):
-    text = item.children[0].value
+    print("itme")
+    if item["type"] == StringGen:
+        text = item["value"]
+    elif item["type"] == StringValue:
+        text = item["value"]
+    elif item["type"] == StringUnparsed:
+        raise ValueError("StringUnparsed should not be evaluated")
+
     text = build_str(text, env)
 
     print("🪄 Querying the LLM")
@@ -184,7 +209,7 @@ def eval_str(item, env):
     # Configure the magic theme for the animated loader
     # config_handler.set_global(theme='smooth', spinner=magic_spinner)
 
-    with alive_bar(title="🔮🪄 Sending query with magic... ", spinner=magic_spinner) as bar:
+    with alive_bar(title="🔮 Consulting the Gods", spinner=magic_spinner, bar=None) as bar:
         llm_response = send_to_llm(text, env)
         bar()
 
@@ -194,19 +219,39 @@ def eval_str(item, env):
 
 
 def eval_ast(expr, env):
-    if expr.data == 'start' or expr.data == 'expr':
-        return eval_ast(expr.children[0], env)
-    elif expr.data == 'name':
-        return eval_name(expr, env)
-    elif expr.data == 'val':
-        return eval_val(expr, env)
-    elif expr.data == 'string':
-        return eval_str(expr, env)
-    elif expr.data == 'sexp':
-        wrapped_expr = expr.children[0]
-        return eval_sexpr(wrapped_expr, env)
-    else:
-        raise ValueError(f'Unknown expression: {expr}')
+    try:
+        # If type is dict check "type" key
+        is_dict = isinstance(expr, dict)
+        if is_dict:
+            if expr.get('type') == StringGen:
+                return {"type": StringValue, "value": eval_str(expr, env)}
+            elif expr.get('type') == StringUnparsed:
+                return {"type": StringValue, "value": build_str(expr.get('value'), env)}
+            elif expr.get('type') == StringValue:
+                return {"type": StringValue, "value": expr.get('value')}
+            else:
+                # Missing type for node error
+                raise ValueError(f'Unknown expression: {expr}')
+        else:
+            if expr.data == 'start' or expr.data == 'expr':
+                return eval_ast(expr.children[0], env)
+            elif expr.data == 'name':
+                return eval_name(expr, env)
+            elif expr.data == 'val':
+                return eval_val(expr, env)
+            elif expr.data == 'sexp':
+                wrapped_expr = expr.children[0]
+                return eval_sexpr(wrapped_expr, env)
+            else:
+                raise ValueError(f'Unknown expression: {expr}')
+    except Exception as e:
+        # debug info
+        print("Error in eval_ast")
+        print("expr type", type(expr))
+        print("expr", expr)
+
+        raise e
+
 
 # Split metadat
 # if first child looks like this
@@ -221,22 +266,19 @@ def split_metadata(tree: Tree):
     if len(tree.children) == 0:
         raise ValueError("No children in tree")
 
-    print("== tre")
-    print(tree)
-    print("== child")
     first_child = tree.children[0]
-    print(first_child.data)
-    if first_child.data == "metadata":
-        metadata = first_child.children[0].value
-        parsed_metadata = parse_metadata(metadata)
+    # if it's type dict then it's metadata
+    if type(first_child) == dict:
+        metadata = first_child
+        parsed_metadata = process_metadata(metadata)
 
         return parsed_metadata, tree.children[1:]
 
     return None, tree.children
 
 
-def parse_metadata(metadata_str):
-    return metadata_parser.parse(metadata_str)
+def process_metadata(m):
+    return m
 
 
 MODEL_CONTEXT_KEY = "__model_context_key__"
@@ -244,9 +286,6 @@ MODEL_CONTEXT_KEY = "__model_context_key__"
 
 def eval_let_form(tree: Tree, context: dict):
     new_context = context.copy()
-    print("Eval Let =========")
-    print("tree: ")
-    print(tree)
 
     metadata, children = split_metadata(tree)
 
@@ -256,10 +295,6 @@ def eval_let_form(tree: Tree, context: dict):
 
     for binding in children:
         # Add this line for debugging purposes
-        print("===== binding Hello =====")
-        print("===== binding =====")
-        print(f"Binding: {binding}")
-        print("Length", len(binding.children))
         # Binding: Tree('binding', [Tree(Token('RULE', 'name'), ['emotion']), Tree(Token('RULE', 'expr'), [
         #               Tree(Token('RULE', 'string'), ['Describe the emotional content of this scene'])])])
         if len(binding.children) == 2:
@@ -287,45 +322,63 @@ with open("src/super_prompt.lark", "r") as file:
     grammar = file.read()
 
 
-dsl_parser = Lark(grammar, start="start", parser="lalr")
-
-
 def parse_super_prompt(dsl_code):
-    tree = dsl_parser.parse(dsl_code)
-    transformer = SuperPromptTransformer()
-    return transformer.transform(tree)
+    transformer = CombinedTransformer()
+    dsl_parser = Lark(grammar, start="start", parser="lalr",
+                      transformer=transformer)
+    return dsl_parser.parse(dsl_code)
 
 
+# a string for the type
+ImageNodeType = "ImageNodeType"
 # Define a transformer class to convert the AST into a more convenient format
 
 
-class SuperPromptTransformer(Transformer):
+class CombinedTransformer(Transformer):
     @ v_args(inline=True)
     def sexpr(self, items):
         return [items]
 
     def SNAME(self, token):
         try:
-            return str(token)
+            token = str(token)
+            return Tree("name", [token])
         except KeyError as e:
             raise ValueError(f"Undefined token: {e}")
 
-    def STRING(self, token):
-        return ast.literal_eval(token)
+    # def STRING(self, token):
+    #     # return {"type": "GenString", "value": ast.literal_eval(token)}
+    #     return Tree("string", [token])
 
     def binding(self, items):
         return Tree("binding", [items[0], items[1]])
 
-    # unwrap start
-
     def start(self, items):
         return items[0]
 
+    def metadata(self, items):
+        return items[0]
 
-class MetadataTransformer(Transformer):
-    @v_args(inline=True)
-    def metadata_dict(self, items):
-        return self._process_dict({key: value for key, value in items})
+    @ v_args(inline=True)
+    def dict(self, items):
+
+        if isinstance(items, dict):
+            # If items is already a dictionary, return it as-is
+            return items
+        elif isinstance(items, lark.tree.Tree):
+            # If items is a Tree, call _process_dict with its children
+            return self._process_dict(items.children)
+        else:
+            # Extract key-value pairs from the Tree objects
+            key_value_pairs = []
+            for key, value in items:
+                if isinstance(value, lark.tree.Tree):
+                    processed_value = self._process_value(value)
+                else:
+                    processed_value = value
+                key_value_pairs.append((key, processed_value))
+
+            return self._process_dict(dict(key_value_pairs))
 
     def key_value_pair_list(self, items):
         return items
@@ -336,8 +389,24 @@ class MetadataTransformer(Transformer):
     def key(self, items):
         return str(items[0])
 
+    def _encode_end_string(self, string):
+        # if this is a filename ".jpg" or ".png" or ".jpeg", ".webp"
+        # case insensitive
+        if string[-4:].lower() in [".jpg", ".png", ".jpeg", ".webp"]:
+            # open as PIL RGB
+            img = Image.open(string)
+            # convert to RGB
+            img = img.convert("RGB")
+
+            return {"type": ImageNodeType, "value": img}
+        else:
+            return {"type": StringGen, "value": string}
+
     def string(self, items):
-        return items[0][1:-1]
+        # trim the quotes
+        res = items[0][1:-1]
+        res = self._encode_end_string(res)
+        return res
 
     def number(self, items):
         num_str = items[0]
@@ -350,9 +419,7 @@ class MetadataTransformer(Transformer):
         return items
 
     def _process_dict(self, d):
-        # return {key: self._process_value(value) for key, value in d.items()}
-        # Remove ":" leader
-        return {key[1:]: self._process_value(value) for key, value in d.items()}
+        return {key.lstrip(':'): self._process_value(value) for key, value in d.items()}
 
     def _process_list(self, items):
         return self._process_value(items[0])
@@ -370,20 +437,33 @@ class MetadataTransformer(Transformer):
             return [self._process_value(v) for v in value]
         elif isinstance(value, dict):
             return self._process_dict(value)
-
         elif isinstance(value, lark.tree.Tree):
             return self._process_value(value.children[0])
+        # IS PIl.Image
+        elif isinstance(value, Image.Image):
+            return value
         else:
             raise ValueError(f"Unknown value type: {type(value)}")
 
+    def let_form(self, items):
+        metadata = None
+        bindings = []
+        expr = None
+
+        if len(items) == 3:
+            metadata, bindings, expr = items
+        elif len(items) == 2:
+            if isinstance(items[0], list):
+                bindings, expr = items
+            else:
+                metadata, expr = items
+
+        metadata = self.dict(
+            metadata) if metadata is not None else None
+        return Tree("let_form", [metadata, bindings, expr])
+
 
 # Parse the DSL code
-
-
-def parse_super_prompt(dsl_code):
-    tree = dsl_parser.parse(dsl_code)
-    transformer = SuperPromptTransformer()
-    return transformer.transform(tree)
 
 
 def eval_case(ast, env):
@@ -553,9 +633,9 @@ with open(file, "r") as f:
     dsl_code = f.read()
 
 dsl_code = """
-(let 
+(let
     ^{:model "blip2"
-    :model-args ["test_example.jpg" "test_example_2.jpg"]}
+    :model-args ["resources/test_example.jpg" "resources/test_example_2.jpg"]}
     [tree "Big"] tree)
 """
 
@@ -563,6 +643,11 @@ dsl_code = """
 # Implement the eval_* functions for each form as needed.
 ast = parse_super_prompt(dsl_code)
 print("==== EVAL =====")
+# pretty
+print("==== AST =====")
+p = ast.pretty()
+print(p)
+print("==== END AST =====")
 result = eval_ast(ast, {})
 print("==== EVAL DONE =====")
 print("==== RESULT =====")

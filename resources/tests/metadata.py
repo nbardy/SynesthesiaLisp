@@ -6,9 +6,10 @@ from lark import Lark
 from lark import Lark, Transformer, v_args
 
 metadata_grammar = """
-?start: metadata_dict
+?start: metadata
+metadata: "^" metadata_dict -> metadata
 
-metadata_dict: "{" key_value_pair_list "}"
+metadata_dict : "{" key_value_pair_list "}"
 key_value_pair_list: key_value_pair (","? key_value_pair)*
 key_value_pair: key value
 key: SYMBOL
@@ -33,6 +34,9 @@ FLOAT: /-?\d+\.\d+/i
 
 
 class MetadataTransformer(Transformer):
+    def metadata(self, items):
+        return items[0]
+
     @v_args(inline=True)
     def metadata_dict(self, items):
         return self._process_dict({key: value for key, value in items})
@@ -95,13 +99,9 @@ def parse_metadata(metadata_str):
     return metadata_parser.parse(metadata_str)
 
 
-metadata_example = """
-(let 
-    ^{:model "blip2"
-    :model-args ["test_example.jpg" "test_example_2.jpg"]
-    [tree "Big"] tree)
+metadata_example = """^{:model "blip2"
+    :model-args ["test_example.jpg" "test_example_2.jpg"]}
 """
 
-metadata_str = metadata_example.strip().lstrip('^')
-metadata_dict = parse_metadata(metadata_str)
+metadata_dict = parse_metadata(metadata_example)
 print(metadata_dict)

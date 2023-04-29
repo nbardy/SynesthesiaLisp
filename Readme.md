@@ -1,4 +1,4 @@
-## Magic Hat
+## Super Prompt
 
 A lisp dialogue for talking to multimodal LLMs
 

@@ -1,6 +1,6 @@
 ## Super Prompt
 
-A lisp dialogue for talking to multimodal LLMs
+A lisp dialogue for talking to multimodal LLMs. Allows you to intermix logic and prompt chaining easily. 
 
 Example:
 
@@ -35,9 +35,9 @@ Example:
 Call in python
 
 ```
-import magichat
+import super_prompt
 
-result = magichat.magic("film.super_prompt")
+result = super_prompt.magic("film.super_prompt")
 ```
 
 
@@ -55,4 +55,3 @@ This is mostly used as an embedded lang for small chains of prompts. A language 
 with some helpers for chaining them. By using a new DSL we can introduce agressive defaults and do some simple examples in a small amount of code.
 
 These are meant to be small embedded prompt recipes in a bigger python program. Not a new programming language.
-

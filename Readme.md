@@ -1,6 +1,6 @@
 ## Super Prompt
 
-A lisp dialogue for talking to multimodal LLMs. Allows you to intermix logic and prompt chaining easily. 
+A lisp dialogue for talking to multimodal LLMs. Allows you to inter mix logic and prompt chaining easily. Talk to our new overlords in the language they were to be spoken to. These are not your grandfather's parenthesis.
 
 Example:
 
